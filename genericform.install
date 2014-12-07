@@ -1,0 +1,156 @@
+<?php
+/**
+* @file
+*
+* This is install file for module.
+*
+*/
+
+/**
+* Implements hook_install().
+*/
+function genericform_install() {
+  variable_set('genericform_class_name', 'Category');
+  variable_set('genericform_class_fieldset', 'Categories');
+  variable_set('genericform_item_name', 'Product');
+  variable_set('genericform_item_fieldset', 'Products');
+  variable_set('genericform_file_name', 'Image');
+  variable_set('genericform_file_ext', 'png gif jpg jpeg');
+  variable_set('genericform_class', '0');
+  variable_set('genericform_item', '0');
+  variable_set('genericform_limit', '25');
+}
+
+/**
+* Implements hook_uninstall().
+*/
+function genericform_uninstall(){
+  variable_del('genericform_class_name');
+  variable_del('genericform_class_fieldset');
+  variable_del('genericform_item_name');
+  variable_del('genericform_item_fieldset');
+  variable_del('genericform_file_name');
+  variable_del('genericform_file_ext');
+  variable_del('genericform_sort_by');
+  variable_del('genericform_class');
+  variable_del('genericform_item');
+  variable_del('genericform_limit');
+
+  $subquery = db_select('genericform_items_files','fi')
+  ->fields('fi', array('file_id'));
+
+  db_update('file_managed')
+  ->fields(array(
+    'status' => 0,
+  ))
+  ->condition('fid', $subquery, 'IN')
+  ->execute();
+}
+
+/**
+* Implements hook_schema().
+*/
+function genericform_schema() {
+  $schema['genericform_attributes'] = array(
+    'description' => 'Table genericform_attributes',
+    'fields' => array(
+      'attribute_id' => array(
+        'description' => 'attribute_id',
+        'type' => 'serial',
+        'not null' => TRUE,
+        'unsigned' => TRUE,
+      ),
+      'attribute_name' => array(
+        'description' => 'attribute_name',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+      ),
+    ),
+    'primary key' => array('attribute_id'),
+  );
+
+  $schema['genericform_class'] = array(
+    'description' => 'Table genericform_class',
+    'fields' => array(
+      'class_id' => array(
+        'description' => 'class_id',
+        'type' => 'serial',
+        'not null' => TRUE,
+        'unsigned' => TRUE
+      ),
+      'class_name' => array(
+        'description' => 'class_name',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+      ),
+    ),
+    'primary key' => array('class_id'),
+  );
+
+  $schema['genericform_items'] = array(
+    'description' => 'Table genericform_items',
+    'fields' => array(
+      'item_id' => array(
+        'description' => 'item_id',
+        'type' => 'serial',
+        'not null' => TRUE,
+        'unsigned' => TRUE
+      ),
+      'class_id' => array(
+        'description' => 'class_id',
+        'type' => 'int',
+        'not null' => TRUE,
+        'unsigned' => TRUE
+      ),
+      'item_name' => array(
+        'description' => 'item_name',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+      ),
+    ),
+    'primary key' => array('item_id'),
+  );
+
+  $schema['genericform_items_details'] = array(
+    'description' => 'Table genericform_items_details',
+    'fields' => array(
+      'item_id' => array(
+        'description' => 'item_id',
+        'type' => 'int',
+        'not null' => TRUE,
+      ),
+      'attribute_id' => array(
+        'description' => 'attribute_id',
+        'type' => 'int',
+        'not null' => TRUE,
+      ),
+      'attribute_value' => array(
+        'description' => 'attribute_value',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+      ),
+    ),
+  );
+
+  $schema['genericform_items_files'] = array(
+    'description' => 'Table genericform_items_files',
+    'fields' => array(
+      'item_id' => array(
+        'description' => 'item_id',
+        'type' => 'int',
+        'not null' => TRUE,
+      ),
+      'file_id' => array(
+        'description' => 'file_id',
+        'type' => 'int',
+        'not null' => TRUE,
+      ),
+    ),
+  );
+
+  return $schema;
+}

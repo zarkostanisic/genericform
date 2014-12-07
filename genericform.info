@@ -1,0 +1,12 @@
+name = Generic form
+description = "This module provides administrator ability to create form,
+moderator ability to use form for data input and user ability to see data and to
+sort that data."
+package = Generic form
+core = 7.x
+version = 1.0
+author = Žarko Stanisić 1065/13 Softversko inženjerstvo
+
+configure = admin/config/genericform
+
+stylesheets[all][] = "genericform.css"

@@ -1,0 +1,25 @@
+/**
+ * @file
+ *
+ * Default css file for genericform module
+ *
+ */
+th.genericform-image{
+  width: 20%;
+}
+
+th.genericform-attribute{
+  width: 30;
+}
+
+th.genericform-file{
+  width: 50%;
+}
+
+th.genericform-managed, td.genericform-managed{
+  text-align: center;
+}
+
+.select-all{
+  width: 5%;
+}

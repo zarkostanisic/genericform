@@ -1,0 +1,692 @@
+<?php
+/**
+* @file
+* This module provides administrator ability to create form, moderator ability
+* to use form for data input and user ability to see data and to sort that data.
+*
+*/
+
+/**
+ * Implement hook_admin_paths().
+ */
+function genericform_admin_paths() {
+  $paths = array(
+    'genericform/add' => TRUE,
+    'genericform/view' => TRUE,
+    'genericform/edit' => TRUE,
+    'genericform/managed_files' => TRUE,
+  );
+  return $paths;
+}
+
+/**
+ * Implement hook_help().
+ */
+function genericform_help($path, $arg) {
+  switch ($path) {
+    case 'admin/help#genericform':
+      $output = '';
+      $output .= '<h3>' . t('About') . '</h3>';
+      $output .= '<p>' . t('This module provides administrator ability to create form,
+moderator ability to use form for data input and user ability to see data and to
+sort that data.') . '</p>';
+      $output .= '<h3>' . t('Uses') . '</h3>';
+      $output .= '<dl>';
+      $output .= '<dt>' . t('Create form') . '</dt>';
+      $output .= '<dd>' . t('This <a href="@configure">form</a> allows the administrator to configure module. This form defines how the call boxes in the form of input, allowable extensions to upload, attributes, and how to sort the input.', array('@configure' => url('admin/config/genericform'))) . '</dd>';
+      $output .= '<dt>' . t('Data input') . '</dt>';
+      $output .= '<dd>' . t('This <a href="@mod">page</a> allows the moderator to input data.', array('@mod' => url('genericform/add'))) . '</dd>';
+      $output .= '<dt>' . t('See data') . '</dt>';
+      $output .= '<dd>' . t('This <a href="@view">page</a> allows anyone who has access to view the entered data.', array('@view'  => url('genericform/view'))) . '</dd>';
+      $output .= '</dl>';
+      return $output;
+  }
+}
+
+/**
+ * Implements hook_permission().
+ */
+function genericform_permission() {
+  return array(
+    'access genericform content' => array(
+      'title' => t('Access insert and edit form for the genericform module'),
+    )
+  );
+}
+
+/**
+ * Implements hook_menu().
+ */
+function genericform_menu() {
+  $items = array();
+  $items['admin/config/genericform'] = array(
+    'title' => t('Generic form - Config'),
+    'type' => MENU_NORMAL_ITEM,
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('admin_form'),
+    'access arguments' => array('administer site configuration'),
+    'file' => 'genericform.admin.form.inc',
+  );
+
+  $items['genericform/add'] = array(
+    'title' => t('Generic form - Add'),
+    'type' => MENU_CALLBACK,
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('mod_form'),
+    'access arguments' => array('access genericform content'),
+    'file' => 'genericform.mod.form.inc',
+  );
+
+  $items['genericform/view'] = array(
+    'title' => t('Generic form - View'),
+    'type' => MENU_CALLBACK,
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('view_form'),
+    'access arguments' => array("access content"),
+    'file' => 'genericform.view.form.inc',
+  );
+
+  $items['genericform/edit'] = array(
+    'title' => t('Generic form - Edit'),
+    'type' => MENU_CALLBACK,
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('edit_form'),
+    'access arguments' => array("access genericform content"),
+    'file' => 'genericform.edit.form.inc',
+  );
+
+  $items['genericform/managed_files'] = array(
+    'title' => t('Generic form - Manage files'),
+    'type' => MENU_CALLBACK,
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('managed_files_form'),
+    'access arguments' => array("access genericform content"),
+    'file' => 'genericform.managed_files.form.inc',
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function genericform_block_info() {
+  $blocks['genericform'] = array(
+    'info' => t('Generic form'),
+  );
+
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function genericform_block_view() {
+  $links = array();
+  if (user_access('access genericform content')){
+    $links[] = l(t('Add content'), 'genericform/add');
+  }
+  $links[] = l(t('View'), 'genericform/view');
+  $block = array(
+    'subject' => t('Generic form'),
+    'content' => theme('item_list', array('items' => $links)),
+  );
+
+return $block;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function genericform_theme($variables) {
+  return array(
+    'download' => array(
+      'template' => 'genericform-download',
+      'variables' => array(
+        'name' => '',
+        'path' => '',
+      )
+    ),
+    'attribute' => array(
+      'template' => 'genericform-attribute',
+      'variables' => array(
+        'name' => '',
+        'value' => '',
+      )
+    ),
+  );
+}
+
+//Function for classes start
+/**
+* save_class().
+*
+* This function save Name for class input.
+*/
+function save_class($form, &$form_state) {
+  $class_name = $form_state['values']['admin_class']['class_name'];
+  $class_fieldset = $form_state['values']['admin_class']['class_fieldset'];
+
+  variable_set('genericform_class_name', $class_name);
+  variable_set('genericform_class_fieldset', $class_fieldset);
+
+  drupal_set_message(t('Settings for class success added!'));
+
+  drupal_goto('admin/config/genericform',
+    array('fragment' => 'form-admin_class')
+  );
+}
+
+/**
+* add_classes().
+*
+* This function add new classes.
+*/
+function add_classes($form, &$form_state) {
+  $num_class = COUNT($form_state['values']['mod_class']['class_fieldset']['class']);
+
+  for ($i = 0; $i < $num_class; $i++) {
+    add_class($form_state['values']['mod_class']['class_fieldset']['class'][$i]);
+  }
+
+  drupal_goto('genericform/add',
+    array('fragment' => 'form-mod_class')
+  );
+}
+
+/**
+* add_class().
+*
+* This function save new class in database.
+*/
+function add_class($class_name) {
+  $result = db_insert('genericform_class')
+    ->fields(array('class_name' => $class_name,))
+    ->execute();
+  if ($result) {
+    $class_name_var = variable_get('genericform_class_name');
+    $message = $class_name_var . ' ' . $class_name  . ' success added!';
+    drupal_set_message($message);
+  }
+}
+
+/**
+* get_classes().
+*
+* This function get all classes from database.
+*/
+function get_classes() {
+  $query = db_select('genericform_class', 'c');
+  $query->fields('c', array('class_id', 'class_name'))
+    ->orderBy('class_name', 'DESC');
+  $result = $query->execute();
+
+  return $result->fetchAll();
+}
+//Function for classes end
+//Function for attributes start
+/**
+* add_attributes().
+*
+* This function add new attributes.
+*/
+function add_attributes($form, &$form_state) {
+  $num_files = COUNT($form_state['values']['admin_attributes']['attributes_fieldset']['attributes']);
+  for ($i = 0; $i < $num_files; $i++) {
+    add_attribute($form_state['values']['admin_attributes']['attributes_fieldset']['attributes'][$i]);
+  }
+
+  drupal_goto('admin/config/genericform',
+    array('fragment' => 'form-admin_attributes')
+  );
+}
+
+/**
+* add_attribute().
+*
+* This function save new attribute in database.
+*/
+function add_attribute($attribute_name) {
+  $result = db_insert('genericform_attributes')
+    ->fields(array('attribute_name' => $attribute_name,))
+    ->execute();
+  if($result) {
+    drupal_set_message(t('Attribute ' . $attribute_name . ' success added!'));
+  }
+}
+
+/**
+* get_attributes().
+*
+* This function get all attributess from database.
+*/
+function get_attributes() {
+  $query = db_select('genericform_attributes', 'a');
+  $query->fields('a', array('attribute_id', 'attribute_name'));
+  $result = $query->execute();
+
+  return $result->fetchAll();
+}
+//Function for attributes end
+//Function for Files start
+/**
+* save_file().
+*
+* This function save Name for file input.
+*/
+function save_file($form, &$form_state) {
+  $file_name = $form_state['values']['admin_file']['file_name'];
+  $file_ext = $form_state['values']['admin_file']['file_ext'];
+  $ext = implode(' ', $file_ext);
+  variable_set('genericform_file_name', $file_name);
+  variable_set('genericform_file_ext', $ext);
+
+  drupal_set_message(t('File name success added!'));
+  drupal_set_message(t('File extension success added!'));
+
+  drupal_goto('admin/config/genericform',
+    array('fragment' => 'form-admin_file')
+  );
+}
+
+/**
+* del_managed_files().
+*
+* This function delete files for item.
+*/
+function del_managed_files($form, &$form_state) {
+  $files = $form_state['values']['table'];
+
+  foreach ($files as $file) {
+    del_managed_file($file);
+  }
+
+  drupal_set_message('Files succcess deleted!');
+}
+
+/**
+* del_managed_file().
+*
+* This function delete file for item.
+*/
+function del_managed_file($file_id) {
+  $query = db_delete('genericform_items_files')
+  ->condition('file_id', $file_id)
+  ->execute();
+
+  $query = db_delete('genericform_items_files')
+  ->condition('file_id', $file_id)
+  ->execute();
+
+  $query = db_update('file_managed')
+  ->fields(array(
+    'status' => '0',
+  ))
+  ->condition('fid', $file_id, '=')
+  ->execute();
+}
+//Function for Files end
+//Function for Sort start
+/**
+* save_sort().
+*
+* This function save Name for sort input.
+*/
+function save_sort($form, &$form_state) {
+  $sort_by = $form_state['values']['admin_sort']['sort_by'];
+  $limit = $form_state['values']['admin_sort']['limit'];
+
+  variable_set('genericform_sort_by', $sort_by);
+  variable_set('genericform_limit', $limit);
+
+  drupal_set_message(t('Sort by and limit success added!'));
+
+  drupal_goto('admin/config/genericform', array('fragment' => 'form-admin_sort'));
+}
+//Function for Sort end
+//Function for Items start
+/**
+* save_item().
+*
+* This function save Name for item input.
+*/
+function save_item($form, &$form_state) {
+  $item_name = $form_state['values']['admin_item']['item_name'];
+  $item_fieldset = $form_state['values']['admin_item']['item_fieldset'];
+
+  variable_set('genericform_item_name', $item_name);
+  variable_set('genericform_item_fieldset', $item_fieldset);
+
+  drupal_set_message(t('Settings for item success added!'));
+
+  drupal_goto('admin/config/genericform',
+    array('fragment' => 'form-admin_item')
+  );
+}
+/**
+* add_items().
+*
+* This function add new items.
+*/
+function add_items($form, &$form_state) {
+  $num_items = COUNT($form_state['values']['mod_items']['items_fieldset']['items']);
+
+  for ($i = 0; $i < $num_items; $i++) {
+    $class_id = $form_state['values']['mod_items']['class'];
+    $item_name = $form_state['values']['mod_items']['items_fieldset']['items'][$i];
+    add_item($class_id, $item_name);
+  }
+
+  drupal_goto('genericform/add',
+    array('fragment' => 'form-mod_items')
+  );
+}
+
+/**
+* add_item().
+*
+* This function save new item in database.
+*/
+function add_item($class_id, $item_name) {
+  $result = db_insert('genericform_items')
+    ->fields(array('class_id' => $class_id, 'item_name' => $item_name,))
+    ->execute();
+
+  if($result) {
+    $item_name_var = variable_get('genericform_item_name');
+    $message = $item_name_var . ' ' . $item_name  . ' success added!';
+    drupal_set_message($message);
+  }
+}
+
+/**
+* get_items().
+*
+* This function get all items from database filtered by class id.
+*/
+function get_items($class_id) {
+  $subquery = db_select('genericform_items_details','di')
+  ->fields('di', array('item_id'));
+
+  $query = db_select('genericform_items', 'i');
+  $query->fields('i', array('item_id', 'item_name'))
+    ->orderBy('item_name')
+    ->condition('item_id', $subquery, 'IN');
+  if ($class_id != 0) {
+    $query->condition('class_id', $class_id, '=');
+  }
+  $result = $query->execute();
+
+  return $result->fetchAll();
+}
+
+/**
+* get_items_add().
+*
+* This function get all items from database filtered by class id and not inserted.
+*/
+function get_items_add($class_id) {
+  $subquery = db_select('genericform_items_details','di')
+  ->fields('di', array('item_id'));
+
+  $query = db_select('genericform_items', 'i');
+  $query->fields('i', array('item_id', 'item_name'))
+    ->orderBy('item_name')
+    ->condition('item_id', $subquery, 'NOT IN');
+  if ($class_id != 0) {
+    $query->condition('class_id', $class_id, '=');
+  }
+  $result = $query->execute();
+
+  return $result->fetchAll();
+}
+
+/**
+* get_items_all().
+*
+* This function get all items from database filtered by class id and item id
+* and ordered by attribute.
+*/
+function get_items_all($sort, $offset = 0) {
+  $class_id = variable_get('genericform_class');
+  $item_id = variable_get('genericform_item');
+  $sort_by = variable_get('genericform_sort_by');
+
+  $limit_var = variable_get('genericform_limit');
+
+  $query = db_select('genericform_items', 'i');
+  $query->leftJoin('genericform_items_details', 'id', 'i.item_id = id.item_id');
+  $query->leftJoin('genericform_attributes', 'a', 'id.attribute_id = a.attribute_id');
+  $query->fields('id', array('item_id'));
+  $query->fields('i', array('item_name'));
+  if ($class_id != 0) {
+    $query->condition('i.class_id', $class_id, '=');
+  }
+  if ($item_id != 0) {
+    $query->condition('i.item_id', $item_id, '=');
+  }
+  $query->condition('a.attribute_name', $sort_by, '=');
+  $query->orderBy("CASE WHEN id.attribute_value REGEXP '[[:alpha:]]+'
+    THEN id.attribute_value
+    ELSE LPAD(id.attribute_value, 10, 0) END", $sort
+  );
+  $query->range($offset * $limit_var, $limit_var);
+
+  $result = $query->execute()->fetchAll();
+
+  return $result;
+}
+
+/**
+* get_item_id_sort_by_attribute_count().
+*
+* This function return count items from database filtered by class id and item id.
+*/
+function get_item_id_sort_by_attribute_count() {
+  $class_id = variable_get('genericform_class');
+  $item_id = variable_get('genericform_item');
+  $sort_by = variable_get('genericform_sort_by');
+
+  $query_count = db_select('genericform_items_details', 'id');
+  $query_count->leftJoin('genericform_items', 'i', 'id.item_id = i.item_id');
+  $query_count->leftJoin('genericform_attributes', 'a', 'id.attribute_id = a.attribute_id');
+  $query_count->fields('id', array('item_id'));
+  $query_count->condition('a.attribute_name', $sort_by, '=');
+  if ($class_id != 0) {
+    $query_count->condition('i.class_id', $class_id, '=');
+  }
+  if ($item_id != 0) {
+    $query_count->condition('i.item_id', $item_id, '=');
+  }
+
+  $result_count = $query_count->execute()->rowCount();
+
+  return $result_count;
+}
+
+/**
+* get_item().
+*
+* This function get item.
+*/
+function get_item($item_id) {
+  $query = db_select('genericform_items', 'i');
+  $query->fields('i', array('item_id', 'item_name', 'class_id'));
+  $query->condition('i.item_id', $item_id, '=');
+
+  $result = $query->execute();
+
+  return $result->fetch();
+}
+
+/**
+* edit_item_name().
+*
+* This function edit item name.
+*/
+function edit_item_basic($form, &$form_state) {
+  $class = $form_state['values']['edit_item']['class'];
+  $name = $form_state['values']['edit_item']['item_name'];
+  $id = $form_state['values']['edit_item']['item_id'];
+
+  $query = db_update('genericform_items')
+  ->fields(array(
+    'item_name' => $name,
+    'class_id' => $class,
+  ))
+  ->condition('item_id', $id, '=');
+
+  if ($query->execute()) {
+    drupal_set_message(t('Item change success!'));
+  }
+}
+
+/**
+* edit_item_details().
+*
+* This function edit item details.
+*/
+function edit_item_details($form, &$form_state) {
+  $num_attributes = COUNT($form_state['values']['edit_item_attributes']['attributes']);
+
+  for ($i = 0; $i < $num_attributes; $i++) {
+    $attribute_value = $form_state['values']['edit_item_attributes']['attributes'][$i];
+    $attribute_id = $form_state['values']['edit_item_attributes']['attributes_id'][$i];
+    $id = $form_state['values']['edit_item']['item_id'];
+
+    edit_item_detail($attribute_value, $attribute_id, $id);
+  }
+
+  drupal_set_message('Item change success!');
+}
+
+/**
+* edit_item_detail().
+*
+* This function edit item detail.
+*/
+function edit_item_detail($attribute_value, $attribute_id, $id) {
+  $query = db_update('genericform_items_details')
+  ->fields(array(
+    'attribute_value' => $attribute_value,
+  ))
+  ->condition('item_id', $id, '=')
+  ->condition('attribute_id', $attribute_id, '=')
+  ->execute();
+}
+
+/**
+* add_edit_files().
+*
+* This function add new files for item in edit form.
+*/
+function add_edit_files($form, &$form_state){
+  $num_files = COUNT($form_state['values']['edit_item_files']['files_fieldset']['files']);
+
+  $item_id = $form_state['values']['edit_item']['item_id'];
+
+  for ($i = 0; $i < $num_files; $i++) {
+    $file = file_load($form_state['values']['edit_item_files']['files_fieldset']['files'][$i]);
+    $file->status = FILE_STATUS_PERMANENT;
+    file_save($file);
+
+    $file_id = $form_state['values']['edit_item_files']['files_fieldset']['files'][$i];
+    add_items_file($item_id, $file_id);
+  }
+
+  drupal_set_message('Files succcess added');
+}
+
+/**
+* get_items_attributes().
+*
+* This function get attributes for item.
+*/
+function get_items_attributes($item_id) {
+  $query = db_select('genericform_items_details', 'id');
+  $query->join('genericform_attributes', 'a', 'id.attribute_id = a.attribute_id');
+  $query->fields('id', array('attribute_value'));
+  $query->fields('a', array('attribute_name', 'attribute_id'));
+  $query->condition('id.item_id', $item_id, '=');
+
+  $result = $query->execute();
+
+  return $result->fetchAll();
+}
+
+/**
+* get_items_files().
+*
+* This function get files for item.
+*/
+function get_items_files($item_id){
+  $query = db_select('genericform_items_files', 'fi');
+  $query->join('file_managed', 'mf', 'fi.file_id = mf.fid');
+  $query->fields('mf', array('fid', 'filename', 'uri', 'filemime', 'filesize'));
+  $query->condition('fi.item_id', $item_id, '=');
+
+  $result = $query->execute();
+
+  return $result->fetchAll();
+}
+
+/**
+* add_items_details().
+*
+* This function save item details(attribute values and uploaded files) in database.
+*/
+function add_items_details($form, &$form_state){
+  $num_files = COUNT($form_state['values']['mod_item_attributes']['files_fieldset']['files']);
+  $num_attributes = COUNT($form_state['values']['mod_item_attributes']['attributes']);
+
+  $item_id = $form_state['values']['mod_item_attributes']['filter']['dropdown_second'];
+
+  for ($i = 0; $i < $num_attributes; $i++) {
+    $attribute_id = $form_state['values']['mod_item_attributes']['attributes_id'][$i];
+    $attribute_value = $form_state['values']['mod_item_attributes']['attributes'][$i];
+    add_items_attribute($item_id, $attribute_id, $attribute_value);
+  }
+
+  for ($i = 0; $i < $num_files; $i++) {
+    $file = file_load($form_state['values']['mod_item_attributes']['files_fieldset']['files'][$i]);
+    $file->status = FILE_STATUS_PERMANENT;
+    file_save($file);
+
+    $file_id = $form_state['values']['mod_item_attributes']['files_fieldset']['files'][$i];
+    add_items_file($item_id, $file_id);
+  }
+
+  drupal_set_message('Details succcess added!');
+
+  drupal_goto('genericform/add',
+    array('fragment' => 'form-view_filter')
+  );
+}
+
+/**
+* add_items_file().
+*
+* This function save item file in database.
+*/
+function add_items_file($item_id, $file_id) {
+  $result = db_insert('genericform_items_files')
+    ->fields(array('item_id' => $item_id, 'file_id' => $file_id))
+    ->execute();
+}
+
+/**
+* add_items_attribute().
+*
+* This function save item attribute value in database.
+*/
+function add_items_attribute($item_id, $attribute_id, $attribute_value) {
+  $result = db_insert('genericform_items_details')
+    ->fields(array(
+        'item_id' => $item_id,
+        'attribute_id' => $attribute_id,
+        'attribute_value' => $attribute_value,
+      )
+    )
+    ->execute();
+}
+//Function for Items end
